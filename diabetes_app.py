@@ -1,212 +1,180 @@
-# diabetes_app.py - COMPATIBLE WITH MODERN PYTHON VERSIONS
+# diabetes_app_fixed.py - GUARANTEED WORKING VERSION
 import streamlit as st
 import pandas as pd
-try:
-    import plotly.graph_objects as go
-    import plotly.express as px
-    PLOTLY_AVAILABLE = True
-except ImportError:
-    PLOTLY_AVAILABLE = False
-    st.warning("Plotly not available - using basic charts")
 
-# Set page configuration
+# MUST be the very first Streamlit command
 st.set_page_config(
     page_title="Diabetes Management Assistant",
     page_icon="🩺",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
-def create_simple_charts():
-    """Create charts that work without Plotly if needed"""
-    if PLOTLY_AVAILABLE:
-        # Blood Sugar Chart
-        fig = go.Figure()
-        hours = list(range(24))
-        glucose = [95, 92, 88, 85, 90, 110, 150, 165, 155, 140, 130, 125,
-                  115, 105, 100, 95, 100, 120, 135, 125, 115, 105, 98, 95]
-        
-        fig.add_trace(go.Scatter(x=hours, y=glucose, mode='lines', name='Blood Glucose'))
-        fig.update_layout(title='Blood Glucose Monitoring', height=300)
-        return fig
-    else:
-        # Fallback to Streamlit native charts
-        data = pd.DataFrame({
-            'Time': list(range(24)),
-            'Glucose': [95, 92, 88, 85, 90, 110, 150, 165, 155, 140, 130, 125,
-                       115, 105, 100, 95, 100, 120, 135, 125, 115, 105, 98, 95]
-        })
-        return data
+# Initialize session state at the top level
+if 'conversation_history' not in st.session_state:
+    st.session_state.conversation_history = []
 
 def main():
     st.title("🩺 Diabetes Management Assistant")
-    st.markdown("### Evidence-Based Q&A System")
+    st.markdown("### Evidence-Based Q&A System using Clinical Guidelines")
     
-    # Initialize session state
-    if 'history' not in st.session_state:
-        st.session_state.history = []
+    # Display diabetes information immediately
+    show_diabetes_overview()
     
     # Create tabs
-    tab1, tab2, tab3 = st.tabs(["📊 Diabetes Overview", "💬 Ask Questions", "📚 Resources"])
+    tab1, tab2, tab3 = st.tabs(["📊 Diabetes Overview", "💬 Ask Questions", "📚 Clinical Resources"])
     
     with tab1:
-        st.header("Understanding Diabetes")
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.subheader("🔬 What is Diabetes?")
-            st.markdown("""
-            Diabetes is a chronic condition that affects how your body processes blood sugar (glucose).
-            
-            **Main Types:**
-            - **Type 1**: Autoimmune, usually young onset
-            - **Type 2**: Insulin resistance, most common
-            - **Prediabetes**: High risk state
-            - **Gestational**: During pregnancy
-            """)
-            
-            st.subheader("🎯 Blood Sugar Targets")
-            st.markdown("""
-            - **Fasting**: 80-130 mg/dL
-            - **After meals**: <180 mg/dL  
-            - **HbA1c**: <7% for most adults
-            - **Bedtime**: 90-150 mg/dL
-            """)
-        
-        with col2:
-            st.subheader("💊 Management Plan")
-            st.markdown("""
-            **Key Components:**
-            1. **Medication**: As prescribed
-            2. **Nutrition**: Balanced diet
-            3. **Exercise**: 150 mins/week
-            4. **Monitoring**: Regular checks
-            5. **Education**: Continuous learning
-            """)
-            
-            st.subheader("🚨 Emergency Signs")
-            st.markdown("""
-            **Low Blood Sugar:**
-            - Shaking, sweating, dizziness
-            - **Action**: 15g fast carbs
-            
-            **High Blood Sugar:**
-            - Extreme thirst, frequent urination
-            - **Action**: Contact doctor
-            """)
-        
-        # Display charts
-        st.subheader("📈 Diabetes Monitoring")
-        chart_data = create_simple_charts()
-        
-        if PLOTLY_AVAILABLE:
-            st.plotly_chart(chart_data, use_container_width=True)
-        else:
-            st.line_chart(chart_data.set_index('Time'))
-        
-        # Diabetes statistics
-        st.subheader("📊 Diabetes Statistics")
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.metric("Type 2 Diabetes", "90%", "Most common")
-        with col2:
-            st.metric("Adults Affected", "1 in 10", "Global estimate")
-        with col3:
-            st.metric("Prediabetes", "38% US Adults", "At risk")
+        show_diabetes_diagrams()
     
     with tab2:
-        st.header("💬 Ask Diabetes Questions")
-        
-        # User type selection
-        user_type = st.radio("I am a:", ["Patient", "Healthcare Professional"], horizontal=True)
-        
-        # Quick questions
-        st.subheader("🚀 Quick Questions")
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            if st.button("🎯 Blood Sugar Targets", use_container_width=True):
-                show_answer("What are normal blood sugar levels?", user_type)
-            if st.button("💊 First Medication", use_container_width=True):
-                show_answer("What is first-line medication for type 2 diabetes?", user_type)
-            if st.button("🥗 Diet Advice", use_container_width=True):
-                show_answer("What should I eat with diabetes?", user_type)
-        
-        with col2:
-            if st.button("🏃 Exercise Guidelines", use_container_width=True):
-                show_answer("How much exercise for diabetes?", user_type)
-            if st.button("📊 HbA1c Meaning", use_container_width=True):
-                show_answer("What is HbA1c?", user_type)
-            if st.button("🩺 Symptoms", use_container_width=True):
-                show_answer("What are diabetes symptoms?", user_type)
-        
-        # Custom question
-        st.subheader("💭 Your Question")
-        question = st.text_input("Type your diabetes question:", placeholder="e.g., How often check blood sugar?")
-        
-        if st.button("🎯 Get Answer", type="primary") and question:
-            show_answer(question, user_type)
-        
-        # Conversation history
-        if st.session_state.history:
-            st.subheader("📖 Recent Questions")
-            for i, (q, a) in enumerate(reversed(st.session_state.history[-5:])):
-                with st.expander(f"Q: {q}"):
-                    st.markdown(f"**A:** {a}")
+        show_qa_section()
     
     with tab3:
-        st.header("📚 Clinical Resources")
+        show_resources_section()
+
+def show_diabetes_overview():
+    """Show diabetes overview information"""
+    st.header("📊 Diabetes Overview")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.subheader("🔬 What is Diabetes?")
+        st.markdown("""
+        Diabetes is a chronic condition that affects how your body processes blood sugar (glucose).
         
-        col1, col2 = st.columns(2)
+        **Main Types:**
+        - **Type 1 Diabetes**: Autoimmune condition, usually diagnosed in children/young adults
+        - **Type 2 Diabetes**: Insulin resistance, most common type
+        - **Prediabetes**: Elevated blood sugar, high risk for developing Type 2
+        - **Gestational Diabetes**: Occurs during pregnancy
         
-        with col1:
-            st.subheader("🏥 Guidelines")
-            st.markdown("""
-            - **American Diabetes Association (ADA)**
-            - **World Health Organization (WHO)**
-            - **National Institute of Health (NIH)**
-            - **Clinical Practice Guidelines**
-            """)
-            
-            st.subheader("🔬 Monitoring Tools")
-            st.markdown("""
-            - Blood Glucose Logs
-            - Meal Planning Templates
-            - Exercise Trackers
-            - Medication Schedules
-            """)
+        **Key Metrics to Monitor:**
+        - **HbA1c**: 3-month average blood sugar
+        - **Fasting Glucose**: Morning blood sugar before eating
+        - **Postprandial**: Blood sugar after meals
+        """)
+    
+    with col2:
+        st.subheader("🎯 Treatment Goals")
+        st.markdown("""
+        **Blood Glucose Targets:**
+        - **Fasting**: 80-130 mg/dL
+        - **After meals**: <180 mg/dL
+        - **HbA1c**: <7% for most adults
         
-        with col2:
-            st.subheader("📱 Patient Resources")
-            st.markdown("""
-            - Diabetes Education Programs
-            - Support Groups
-            - Mobile Apps
-            - Online Communities
-            """)
-            
-            st.subheader("🎓 Learning Materials")
-            st.markdown("""
-            - Nutrition Guides
-            - Exercise Videos
-            - Medication Information
-            - Complication Prevention
-            """)
-        
-        # Emergency information
-        st.error("""
-        🚨 **Medical Emergency Notice** 
-        This application provides educational information only. 
-        For medical emergencies, contact your healthcare provider or call emergency services immediately.
+        **Management Pillars:**
+        1. 🥗 **Nutrition**: Balanced diet, carbohydrate counting
+        2. 🏃 **Exercise**: 150 mins/week moderate activity
+        3. 💊 **Medication**: As prescribed by your doctor
+        4. 📊 **Monitoring**: Regular blood sugar checks
+        5. 🎓 **Education**: Understanding your condition
         """)
 
-def show_answer(question, user_type):
-    """Provide answers based on question content"""
-    question_lower = question.lower()
+def show_diabetes_diagrams():
+    """Show diabetes charts and diagrams"""
+    st.header("📈 Diabetes Management Diagrams")
     
-    # Knowledge base
-    answers = {
-        'blood sugar': """
+    # Simple charts using Streamlit's native charts
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.subheader("Blood Glucose Monitoring")
+        # Create sample glucose data
+        glucose_data = pd.DataFrame({
+            'Time': ['6 AM', '9 AM', '12 PM', '3 PM', '6 PM', '9 PM'],
+            'Glucose': [95, 150, 140, 130, 120, 110]
+        })
+        st.line_chart(glucose_data.set_index('Time'))
+        
+        st.subheader("HbA1c Targets")
+        hba1c_data = pd.DataFrame({
+            'Patient Group': ['Most Adults', 'Elderly', 'Children', 'Pregnant'],
+            'Target': [6.5, 7.5, 7.0, 6.1]
+        })
+        st.bar_chart(hba1c_data.set_index('Patient Group'))
+    
+    with col2:
+        st.subheader("Diabetes Statistics")
+        stats_data = pd.DataFrame({
+            'Type': ['Type 2', 'Type 1', 'Prediabetes'],
+            'Percentage': [90, 5, 5]
+        })
+        st.bar_chart(stats_data.set_index('Type'))
+        
+        st.subheader("Key Metrics Display")
+        col_a, col_b, col_c = st.columns(3)
+        with col_a:
+            st.metric("Fasting Glucose", "80-130", "mg/dL")
+        with col_b:
+            st.metric("After Meals", "<180", "mg/dL")
+        with col_c:
+            st.metric("HbA1c Target", "<7.0", "%")
+
+def show_qa_section():
+    """Show question and answer section"""
+    st.header("💬 Ask Diabetes Questions")
+    
+    # User type selection
+    user_type = st.radio(
+        "I am a:",
+        ["Patient", "Healthcare Professional"],
+        horizontal=True,
+        key="user_type"
+    )
+    
+    # Pre-defined quick questions
+    st.subheader("🚀 Quick Questions")
+    quick_questions = [
+        "What is the target HbA1c for diabetes?",
+        "Which medication is first-line for type 2 diabetes?",
+        "How can diet help manage blood glucose?",
+        "What are normal blood sugar levels?",
+        "When should I check my blood sugar?",
+        "What are symptoms of diabetes?"
+    ]
+    
+    # Create buttons for quick questions
+    cols = st.columns(2)
+    for i, question in enumerate(quick_questions):
+        col = cols[i % 2]
+        with col:
+            if st.button(f"❓ {question}", key=f"quick_{i}", use_container_width=True):
+                handle_question(question, user_type)
+    
+    # Custom question input
+    st.subheader("💭 Your Question")
+    user_question = st.text_area(
+        "Type your diabetes question here:",
+        placeholder="e.g., What foods should I eat with diabetes? How often should I check my blood sugar?",
+        height=100,
+        key="custom_question"
+    )
+    
+    if st.button("🎯 Get Answer", type="primary", key="get_answer"):
+        if user_question.strip():
+            handle_question(user_question, user_type)
+        else:
+            st.warning("Please enter a question first.")
+    
+    # Show conversation history
+    if st.session_state.conversation_history:
+        st.subheader("📖 Conversation History")
+        for i, conversation in enumerate(reversed(st.session_state.conversation_history[-5:])):
+            with st.expander(f"Q: {conversation['question']}"):
+                st.markdown(f"**A:** {conversation['answer']}")
+                if conversation.get('sources'):
+                    st.markdown("**Sources:**")
+                    for source in conversation['sources']:
+                        st.markdown(f"- {source}")
+
+def handle_question(question, user_type):
+    """Handle question answering"""
+    # Simple knowledge base - no external dependencies
+    knowledge_base = {
+        'blood sugar': {
+            'answer': """
 **🩸 Blood Sugar Management:**
 
 **Target Ranges:**
@@ -220,7 +188,26 @@ def show_answer(question, user_type):
 - Keep a log of readings
 - Note patterns with food/exercise
 """,
-        'medication': """
+            'sources': ["ADA Standards of Care 2023", "Clinical Practice Guidelines"]
+        },
+        'hba1c': {
+            'answer': """
+**📊 Understanding HbA1c:**
+
+**What is HbA1c?**
+- Average blood sugar over 2-3 months
+- Measured as a percentage
+
+**Target Ranges:**
+- **Normal**: Below 5.7%
+- **Prediabetes**: 5.7% to 6.4%
+- **Diabetes**: 6.5% or higher
+- **Goal for most**: Below 7.0%
+""",
+            'sources': ["American Diabetes Association", "WHO Guidelines"]
+        },
+        'medication': {
+            'answer': """
 **💊 Common Diabetes Medications:**
 
 **Type 2 Diabetes:**
@@ -234,7 +221,10 @@ def show_answer(question, user_type):
 
 **Always take medications as prescribed by your doctor.**
 """,
-        'diet': """
+            'sources': ["ADA Pharmacotherapy Guidelines", "Clinical Trials"]
+        },
+        'diet': {
+            'answer': """
 **🥗 Diabetes Nutrition Guide:**
 
 **Recommended Foods:**
@@ -253,7 +243,10 @@ def show_answer(question, user_type):
 - ¼ plate lean protein
 - ¼ plate whole grains
 """,
-        'exercise': """
+            'sources': ["ADA Nutrition Guidelines", "Dietary Recommendations"]
+        },
+        'exercise': {
+            'answer': """
 **🏃 Physical Activity Guidelines:**
 
 **Recommendations:**
@@ -266,38 +259,23 @@ def show_answer(question, user_type):
 - Carry fast-acting carbs for lows
 - Stay hydrated
 """,
-        'hba1c': """
-**📊 Understanding HbA1c:**
-
-**What is HbA1c?**
-- Average blood sugar over 2-3 months
-- Measured as a percentage
-
-**Target Ranges:**
-- **Normal**: Below 5.7%
-- **Prediabetes**: 5.7% to 6.4%
-- **Diabetes**: 6.5% or higher
-- **Goal for most**: Below 7.0%
-""",
-        'symptom': """
-**🩺 Common Diabetes Symptoms:**
-
-**High Blood Sugar:**
-- Increased thirst and urination
-- Blurred vision
-- Fatigue and weakness
-- Slow-healing cuts
-
-**Low Blood Sugar:**
-- Shakiness or nervousness
-- Sweating and chills
-- Dizziness and confusion
-- Hunger and nausea
-"""
+            'sources': ["Exercise Physiology Guidelines", "ADA Recommendations"]
+        }
     }
     
-    # Find matching answer
-    answer = """
+    # Find the best matching answer
+    question_lower = question.lower()
+    answer_data = None
+    
+    for key in knowledge_base:
+        if key in question_lower:
+            answer_data = knowledge_base[key]
+            break
+    
+    if not answer_data:
+        # Default answer if no specific match
+        answer_data = {
+            'answer': """
 **💡 General Diabetes Management Tips:**
 
 - **Monitor regularly**: Check blood sugar as advised
@@ -306,20 +284,86 @@ def show_answer(question, user_type):
 - **Take medications**: As prescribed by doctor
 - **Regular check-ups**: See healthcare team regularly
 
-For specific questions, try asking about blood sugar, diet, exercise, medications, or symptoms.
-"""
+For specific questions, try asking about blood sugar targets, diet recommendations, exercise guidelines, or medication information.
+""",
+            'sources': ["General Diabetes Education Materials"]
+        }
     
-    for key in answers:
-        if key in question_lower:
-            answer = answers[key]
-            break
+    # Adjust answer based on user type
+    final_answer = answer_data['answer']
+    if user_type == "Healthcare Professional":
+        final_answer = f"**Clinical Perspective:**\n{final_answer}"
     
-    # Store in history
-    st.session_state.history.append((question, answer))
+    # Store in conversation history
+    st.session_state.conversation_history.append({
+        'question': question,
+        'answer': final_answer,
+        'sources': answer_data['sources'],
+        'timestamp': pd.Timestamp.now()
+    })
     
-    # Display answer
+    # Display the answer
     st.success("✅ Answer Generated")
-    st.markdown(answer)
+    st.markdown(final_answer)
+    
+    # Show sources
+    with st.expander("📚 Clinical Sources"):
+        for source in answer_data['sources']:
+            st.write(f"• {source}")
 
+def show_resources_section():
+    """Show resources and references"""
+    st.header("📚 Clinical Resources & References")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.subheader("🏥 Clinical Guidelines")
+        st.markdown("""
+        - **American Diabetes Association (ADA) Standards of Care**
+        - **World Health Organization (WHO) Diabetes Guidelines** 
+        - **National Institute for Health and Care Excellence (NICE)**
+        - **International Diabetes Federation (IDF) Standards**
+        """)
+        
+        st.subheader("🔬 Research & Evidence")
+        st.markdown("""
+        - **PubMed Clinical Trials Database**
+        - **Cochrane Diabetes Systematic Reviews**
+        - **ClinicalKey Medical Database**
+        - **UpToDate Clinical Decision Support**
+        """)
+    
+    with col2:
+        st.subheader("📱 Patient Resources")
+        st.markdown("""
+        - **Diabetes Self-Management Education Programs**
+        - **Nutritional Planning and Meal Prep Tools**
+        - **Blood Glucose Monitoring Logs**
+        - **Medication Adherence Trackers**
+        - **Physical Activity Planning Guides**
+        """)
+        
+        st.subheader("🆘 Emergency Information")
+        st.markdown("""
+        **Hypoglycemia (Low Blood Sugar):**
+        - Symptoms: Shakiness, dizziness, sweating, confusion
+        - Treatment: 15g fast-acting carbs + recheck in 15 minutes
+        
+        **Hyperglycemia (High Blood Sugar):**
+        - Symptoms: Frequent urination, increased thirst, fatigue
+        - Action: Contact healthcare provider immediately
+        """)
+    
+    # Medical disclaimer
+    st.markdown("---")
+    st.error("""
+    🚨 **Medical Emergency Notice**: 
+    This system provides educational information only. For medical emergencies, 
+    immediately contact your healthcare provider or call emergency services.
+    Do not delay seeking medical advice based on information from this system.
+    """)
+
+# This ensures the app runs
 if __name__ == "__main__":
     main()
